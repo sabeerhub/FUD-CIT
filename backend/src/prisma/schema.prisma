@@ -1,0 +1,204 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  STUDENT
+  LECTURER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  fullName      String
+  role          UserRole  @default(STUDENT)
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Profile relationships
+  studentProfile  Student?
+  lecturerProfile Lecturer?
+
+  // Communication
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  notifications    Notification[]
+}
+
+model Student {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  regNumber     String    @unique
+  level         String    // e.g., 100, 200, 300, 400
+  year          String
+  department    String    @default("Information Technology")
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Academic
+  submissions   Submission[]
+  attendance    Attendance[]
+  testScores    TestScore[]
+  projects      Project[]
+}
+
+model Lecturer {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  staffId       String    @unique
+  department    String    @default("Information Technology")
+  designation   String
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Management
+  courses       Course[]
+  announcements Announcement[]
+}
+
+model Course {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  title         String
+  level         String
+  semester      Int
+  lecturerId    String?
+
+  lecturer      Lecturer? @relation(fields: [lecturerId], references: [id])
+
+  // Related
+  materials     CourseMaterial[]
+  assignments   Assignment[]
+  attendance    Attendance[]
+  testScores    TestScore[]
+  timetables    Timetable[]
+}
+
+model CourseMaterial {
+  id            String    @id @default(uuid())
+  courseId      String
+  title         String
+  description   String?
+  fileUrl       String
+  fileType      String    // PDF, PPTX, etc.
+  createdAt     DateTime  @default(now())
+
+  course        Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model Assignment {
+  id            String    @id @default(uuid())
+  courseId      String
+  title         String
+  description   String?
+  deadline      DateTime
+  fileUrl       String?
+  createdAt     DateTime  @default(now())
+
+  course        Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  submissions   Submission[]
+}
+
+model Submission {
+  id            String    @id @default(uuid())
+  assignmentId  String
+  studentId     String
+  fileUrl       String
+  remarks       String?
+  score         Int?
+  submittedAt   DateTime  @default(now())
+
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Attendance {
+  id            String    @id @default(uuid())
+  courseId      String
+  studentId     String
+  date          DateTime  @default(now())
+  status        String    // PRESENT, ABSENT, LATE
+
+  course        Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model TestScore {
+  id            String    @id @default(uuid())
+  courseId      String
+  studentId     String
+  score         Float
+  type          String    // TEST, CA1, CA2
+  maxScore      Float     @default(100)
+  createdAt     DateTime  @default(now())
+
+  course        Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Timetable {
+  id            String    @id @default(uuid())
+  courseId      String
+  day           String    // MONDAY, TUESDAY, etc.
+  startTime     String    // 08:00
+  endTime       String    // 10:00
+  venue         String
+
+  course        Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model Announcement {
+  id            String    @id @default(uuid())
+  lecturerId    String
+  title         String
+  content       String
+  targetLevel   String?   // If null, all levels
+  createdAt     DateTime  @default(now())
+
+  lecturer      Lecturer  @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id            String    @id @default(uuid())
+  senderId      String
+  receiverId    String
+  content       String
+  createdAt     DateTime  @default(now())
+
+  sender        User      @relation("SentMessages", fields: [senderId], references: [id])
+  receiver      User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Notification {
+  id            String    @id @default(uuid())
+  userId        String
+  title         String
+  message       String
+  isRead        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id            String    @id @default(uuid())
+  studentId     String
+  title         String
+  description   String?
+  fileUrl       String
+  type          String    // PROJECT, SEMINAR
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt     DateTime  @default(now())
+
+  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
